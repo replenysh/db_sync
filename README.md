@@ -1,9 +1,12 @@
 # DB Sync
 
-This is a tool used to sync functions and RLS policies to a database based on definitinos in a file tree.
-We want to do this so we can manage these entities in a declarative way and take advantage of version control in peer reviews.
-There are some limitations to this tool, so please read this document carefully to understand the semantics of 
-this tool.
+This is a tool used to sync functions and RLS policies to a database based on definitions in a file tree.
+Is is valuable to manage these entities in a declarative way and take advantage of version control in peer reviews.
+There are some limitations to this tool, so please read this document carefully to understand the semantics.
+
+## Usage
+
+This tool can be used as a nix flake. [Check it out on FlakesHub](https://flakehub.com/flake/jaredramirez/db_sync)
 
 ## Overview
 
@@ -42,21 +45,25 @@ And a config file like:
 Running this tool will, in order:
 
 1. Drop all RLS policies for all tables in schemas `c`, and `d`
-2. Drop all functions and types in  schemas `a`, and `b`
+2. Drop all functions and types in  schemas `a`, and `b` (will `DROP ... CASCADE` these functions/types)
 3. Run all files named `types.sql` in `functions/`
 4. Run all other files in `functions/`
 5. Run all policy statements in `rls_policies/`
 
 All steps are run in the same postgres transaction, so if anything fails all changes are rolledback and the database is untouched.
 
-### Config & filetree
+**Be really careful about what schemas you list here, this tool will drop all RLS policies in `rls_policies.schemas` and `DROP CASCADE` all functions and types `functions.schemas`.**
+
+### Config
 
 This tool needs a config file, defined here as `config.json`.
 
-This config specifies the directories to use for functions & RLS policies (currently defined as `functions/` and `rls_policies/` respectively).
+This config specifies the directories to use for functions & RLS policies. In the documentation, we'll assume these are defined as `functions/` and `rls_policies/` respectively.
 Additionally, it specifies the schemas to work with for both functions and policies. This is an important detail!
 If you tried to define `CREATE FUNCTION schema_d.new_function` in the file `functions/schema_a/new_function`.
 This tool will error, because `schema_d` isn't in `config.functions.schemas`. 
+
+### Filetree
 
 The file tree doesn't actually matter! You could, in theory have a file tree like:
 ```
@@ -95,26 +102,3 @@ In `rls_policies/`, only the following statements are allow:
 - `CREATE POLICY`
 
 This tool will error if there is an unallowed statement. 
-
-### Functions Limitations
-
-You might've notices in our `config`, we include a bunch of schemas in our `rls_policies/` directiry, but only
-a few in our `functions/` directory. This is becasue we can't manage all functions with this tool.
-Namely, we can't manage Postgraphile virtual column functions ([docs](https://www.graphile.org/postgraphile/computed-columns/))
-or any functions that a table uses in it's generated columns or it's virtual columns functions. Additionally, since 
-we clear out the function schemas and re-create the functions every time, it's safer to only use specific, dedicate function schemas with this tool. 
-
-#### Postgraphile
-
-Due to the limitations mentioned above, we have 2 main schemas we create functions with:
-
-1. `functions_public`
-2. `functions_private`
-
-As you can guess, functions in `public` are exposed via graphql and `private` onces are not.
-
-Overtime, we should migrate all functions that we can into these schemas for easier management.
-
-> Note: We can do this progressively, meaining as we update functions, we can drop them from their old locations and use them in new locations. Additionally we can use the `postgraphile.tags` fileto preserve names of functions in the public API so we don't introduce breaking changes
-
-> Note 2: We also include the `go` schema, as that's a schema that's used only by the `replenysh-go` app and has a super clear scope. (It only has 1 function it in, nothing else in the schema) 

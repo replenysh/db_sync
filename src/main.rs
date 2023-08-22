@@ -13,14 +13,15 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
+use toml;
 
-/// Simple program to greet a person
+/// Program to sync function and RLS defintions defined declaratively to a database
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     db_url: String,
 
-    #[arg(long, default_value = "./db_sync.config.json")]
+    #[arg(long, default_value = "./db_sync.toml")]
     config_path: PathBuf,
 }
 
@@ -47,15 +48,15 @@ enum Error {
     RlsStatementError(statement::Error, PathBuf, String, Vec<String>),
     PathDirError(PathBuf),
     PathFileError(PathBuf),
-    ConfigError,
+    ConfigError(toml::de::Error),
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
 
-    let config_file =
-        File::open(&args.config_path).map_err(|_| Error::PathFileError(args.config_path))?;
-    let config: Config = serde_json::from_reader(config_file).map_err(|_| Error::ConfigError)?;
+    let config_str = fs::read_to_string(&args.config_path)
+        .map_err(|_| Error::PathFileError(args.config_path))?;
+    let config: Config = toml::from_str(&config_str).map_err(|e| Error::ConfigError(e))?;
 
     if !config.rls_policies.dir.is_dir() {
         return Err(Error::PathDirError(config.rls_policies.dir).into());
@@ -520,8 +521,8 @@ impl std::fmt::Display for Error {
                     Colour::Red.bold().paint(path.to_str().unwrap_or(""))
                 )
             }
-            Error::ConfigError => {
-                write!(f, "Invalid config",)
+            Error::ConfigError(error) => {
+                write!(f, "Invalid config: {:?}", error.message())
             }
             e => write!(f, "{}", e),
         }

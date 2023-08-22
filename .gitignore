@@ -1,3 +1,4 @@
 .direnv
 target
 result
+db_sync.toml

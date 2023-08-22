@@ -1,16 +1,39 @@
 # DB Sync
 
-This is a tool used to sync functions and RLS policies to a database based on definitions in a file tree.
-Is is valuable to manage these entities in a declarative way and take advantage of version control in peer reviews.
-There are some limitations to this tool, so please read this document carefully to understand the semantics.
+This is a tool used to sync Postgres [functions](https://www.postgresql.org/docs/15/sql-createfunction.html) and [row level security (RLS) policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) to a database based on definitions in a file tree.
+It is valuable to manage these entities in a declarative way and there are numerous benefits, such as:
 
-## Usage
+1. Not needing to copy/paste an entire function/policy to make a small change
+2. See how a function changes over time with version control
+3. Easily see what new changes are introduced in PR review
 
-This tool can be used as a nix flake. [Check it out on FlakesHub](https://flakehub.com/flake/jaredramirez/db_sync)
+However, there are some limitations to `db_sync`, so please read this document carefully to understand the semantics.
+
+## Install & use
+
+`db_sync` can be installed as a nix flake. [Check it out on FlakesHub](https://flakehub.com/flake/jaredramirez/db_sync)
+
+Here's output of running `db_sync --help`:
+
+```
+Program to sync function and RLS defintions defined declaratively to a database
+
+Usage: db_sync [OPTIONS] <DB_URL>
+
+Arguments:
+  <DB_URL>
+
+Options:
+      --config-path <CONFIG_PATH>  [default: ./db_sync.toml]
+  -h, --help                       Print help
+  -V, --version                    Print version
+```
+
+`db_sync` only supports PostgresQL.
 
 ## Overview
 
-This tool takes a directory structure and syncs its definitions to a database. Given a file tree like:
+`db_sync` takes a directory structure and syncs its definitions to a database. Given a file tree like:
 
 ```
 functions/
@@ -28,64 +51,59 @@ rls_policies/
 ```
 
 And a config file like:
-```json
-{
-  "functions": {
-    "dir": "./functions",
-    "schemas": ["schema_a", "schema_b"]
-  },
-  "rls_policies": {
-    "dir": "./rls_policies",
-    "schemas": ["schema_c", "schema_d"]
-  }
-}
+```toml
+[functions]
+dir = './functions'
+schemas = ['a', 'b']
 
+[rls_policies]
+dir = './rls_policies'
+schemas = ['c', 'd']
 ```
 
-Running this tool will, in order:
+Running `db_sync` will, in order:
 
 1. Drop all RLS policies for all tables in schemas `c`, and `d`
 2. Drop all functions and types in  schemas `a`, and `b` (will `DROP ... CASCADE` these functions/types)
 3. Run all files named `types.sql` in `functions/`
 4. Run all other files in `functions/`
-5. Run all policy statements in `rls_policies/`
+5. Run all files `rls_policies/`
 
 All steps are run in the same postgres transaction, so if anything fails all changes are rolledback and the database is untouched.
 
-**Be really careful about what schemas you list here, this tool will drop all RLS policies in `rls_policies.schemas` and `DROP CASCADE` all functions and types `functions.schemas`.**
+**Be really careful about what schemas use with `db_sync`** as it will drop all RLS policies in `rls_policies.schemas` and **`DROP CASCADE` all functions and types `functions.schemas`.** I recommend using a dedicated `functions` schema that's created specifically for this tool, that way `db_sync` doesn't accidentally drop something you didn't intend.
 
 ### Config
 
-This tool needs a config file, defined here as `config.json`.
+`db_sync` needs a config file. This config specifies the directories to use for functions & RLS policies.
+This config  specifies the schemas to work with for both functions and policies as well as the directories to use.
 
-This config specifies the directories to use for functions & RLS policies. In the documentation, we'll assume these are defined as `functions/` and `rls_policies/` respectively.
-Additionally, it specifies the schemas to work with for both functions and policies. This is an important detail!
-If you tried to define `CREATE FUNCTION schema_d.new_function` in the file `functions/schema_a/new_function`.
-This tool will error, because `schema_d` isn't in `config.functions.schemas`. 
+Specifiying the schemas is an important detail!
+If you tried to define `CREATE FUNCTION schema_d.new_function` in the file `functions/` dir
+you'd get an error because `schema_d` isn't in `config.functions.schemas`. 
 
-### Filetree
+#### Shared types via `types.sql`
 
-The file tree doesn't actually matter! You could, in theory have a file tree like:
+You can define files called `types.sql` in your `functions/` directory. These will run before the rest of the files, so it's a great place to  create shared types that the multiple functions use.
+
+> Other than the `types.sql` files, there is no gaurenteed of order the rest of the functions files will be run. If you have multiple `types.sql` files in different directories, the order that the `types` files will be run in is also not gaurenteed. However, all `*/types.sql` files will be run before any function defintion file.
+
+#### Functions bodies
+
+Before the functions are run, we the command `SET check_function_bodies = FALSE;`. This disables the validation of bodies of functions, allowing you to reference other functions in other files without us having to do tons of cyclical dependency work. However, this means that some errors will not be caught until the functions are run. So always test you code! And write [pgtap](https://pgtap.org/) tests too!
+
+### File structure
+
+Beyond the root directory, the way the files are organizaed don't actually matter! You could have a file tree like:
 ```
 functions/
 ├── schema_a_function_1.sql
 └── schema_b_function_2.sql
 ```
 
-So long as the files only use the schemas defined in `config.functions.schemas`, this tool will work.
+So long as the files only use the schemas defined in `config.functions.schemas`, `db_sync` will work.
 
-That said, we recommend using the 1st filetree structure mentioned in this document as it's the most organized and works nicely with git diffs. 
-
-#### `types.sql`
-
-You can define files called `types.sql` in your `functions/` directory. These will run before the rest of the files, so it's a great place to 
-create types that the multiple other functions use.
-
-> Other than the `types.sql` files, there is no gaurenteed order the rest of the functions files will be run. If you have multiple `types.sql` files in different directories, the order that the `types` files will be run in is also not gaurenteed. However, all `types` files will be run before any othe file.
-
-#### Functions bodies
-
-Before the functions are run, we the command `SET check_function_bodies = FALSE;`. This disables the validation of bodies of functions, allowing you to reference other functions in other files without us having to do tons of cyclical dependency work. However, this means that some errors will not be caught until the functions are run. So always test you code! And write pgtap tests too!
+That said, we recommend using the 1st filetree structure mentioned in this document.
 
 ### Statements in the files
 
@@ -101,4 +119,9 @@ In `functions/`, only the following statements are allow:
 In `rls_policies/`, only the following statements are allow:
 - `CREATE POLICY`
 
-This tool will error if there is an unallowed statement. 
+`db_sync` will error if there is an unallowed statement. 
+
+## Roadmap
+
+- Add `--dry-run` flag?
+- ???

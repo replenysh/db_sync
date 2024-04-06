@@ -42,6 +42,7 @@
               rustPackages.clippy
               postgresql_15
               python311Packages.sqlparse
+              darwin.apple_sdk.frameworks.SystemConfiguration
 
               libiconv
               cmake

@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "db_sync"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "ansi_term",
  "anyhow",

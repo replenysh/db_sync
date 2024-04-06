@@ -1,10 +1,8 @@
 use ansi_term::Colour;
 use ansi_term::Style;
-use anyhow;
 use clap::Parser;
 use postgres::{Client, NoTls};
 use serde::Deserialize;
-use serde_json;
 use std::cmp::Ordering;
 use std::ffi::OsString;
 use std::fs::File;
@@ -13,7 +11,6 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
-use toml;
 
 /// Program to sync function and RLS defintions defined declaratively to a database
 #[derive(Parser, Debug)]

@@ -51,17 +51,8 @@
             lockFile = ./Cargo.lock;
             allowBuiltinFetchGit = true;
           };
-          nativeBuildInputs = [ cmake llvmPackages_latest.llvm ];
-          buildInputs = if stdenv.isLinux then [ ] else [ libiconv darwin.apple_sdk.frameworks.SystemConfiguration ];
-          LIBCLANG_PATH =
-            lib.makeLibraryPath [ llvmPackages_latest.libclang.lib ];
-          BINDGEN_EXTRA_CLANG_ARGS =
-            (builtins.map (a: ''-I"${a}/include"'') (if stdenv.isLinux then [ glibc.dev ] else [ ]))
-            ++ [
-              ''-I"${llvmPackages_latest.libclang.lib}/lib/clang/${llvmPackages_latest.libclang.version}/include"''
-              ''-I"${glib.dev}/include/glib-2.0"''
-              ''-I${glib.out}/lib/glib-2.0/include/''
-            ];
+          nativeBuildInputs = [ cmake llvmPackages_latest.llvm rustPlatform.bindgenHook ];
+          buildInputs = [ libiconv darwin.apple_sdk.frameworks.SystemConfiguration ];
         };
         devShell = with pkgs;
           mkShell {

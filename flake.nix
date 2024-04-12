@@ -52,7 +52,7 @@
             allowBuiltinFetchGit = true;
           };
           nativeBuildInputs = [ cmake llvmPackages_latest.llvm rustPlatform.bindgenHook ];
-          buildInputs = [ libiconv darwin.apple_sdk.frameworks.SystemConfiguration ];
+          buildInputs = if stdenv.isLinux then [ ] else [ libiconv darwin.apple_sdk.frameworks.SystemConfiguration ];
         };
         devShell = with pkgs;
           mkShell {

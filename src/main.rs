@@ -1,10 +1,8 @@
 use ansi_term::Colour;
 use ansi_term::Style;
-use anyhow;
 use clap::Parser;
 use postgres::{Client, NoTls};
 use serde::Deserialize;
-use serde_json;
 use std::cmp::Ordering;
 use std::ffi::OsString;
 use std::fs::File;
@@ -13,7 +11,6 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
-use toml;
 
 /// Program to sync function and RLS defintions defined declaratively to a database
 #[derive(Parser, Debug)]
@@ -325,10 +322,10 @@ mod statement {
         if let [schema, name] = nodes.as_slice() {
             match (&schema.node, &name.node) {
                 (Some(pg_query::NodeEnum::String(schema)), Some(_)) => {
-                    if schemas.into_iter().any(|s| *s == *schema.str) {
+                    if schemas.into_iter().any(|s| *s == *schema.sval) {
                         Ok(())
                     } else {
-                        Err(Error::InvalidSchema(schema.str.clone()))
+                        Err(Error::InvalidSchema(schema.sval.clone()))
                     }
                 }
                 _ => Err(Error::NoSchema),

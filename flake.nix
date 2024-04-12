@@ -6,33 +6,6 @@
     rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
-  # outputs = { nixpkgs, utils, naersk, ... }:
-  #   utils.lib.eachDefaultSystem (system:
-  #     let
-  #       pkgs = import nixpkgs { inherit system; };
-  #       naersk-lib = pkgs.callPackage naersk { };
-  #       isLinux = pkgs.stdenv.isLinux;
-  #     in {
-  #       defaultPackage = naersk-lib.buildPackage {
-  #         src = ./.;
-  #         nativeBuildInputs = [ pkgs.cmake pkgs.llvmPackages_latest.llvm ];
-  #         buildInputs = if isLinux then [ ] else [ pkgs.libiconv pkgs.darwin.apple_sdk.frameworks.SystemConfiguration ];
-  #         LIBCLANG_PATH =
-  #           pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
-  #         BINDGEN_EXTRA_CLANG_ARGS =
-  #           # Includes with normal include path
-  #           (builtins.map (a: ''-I"${a}/include"'')
-  #             (if isLinux then [ pkgs.glibc.dev ] else [ ]))
-  #           # Includes with special directory paths
-  #           ++ [
-  #             ''
-  #               -I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
-  #             ''-I"${pkgs.glib.dev}/include/glib-2.0"''
-  #             "-I${pkgs.glib.out}/lib/glib-2.0/include/"
-  #           ];
-  #       };
-  #     });
-
   outputs = { nixpkgs, utils, rust-overlay, ... } @ inputs: 
     utils.lib.eachDefaultSystem (system:
       let

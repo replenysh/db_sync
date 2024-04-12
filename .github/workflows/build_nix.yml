@@ -10,11 +10,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v2
 
       - uses: DeterminateSystems/nix-installer-action@v2
 
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
+      - uses: actions/cache@v3
+        id: nix-cache
+        with:
+          path: /nix/store
+          key: ${{ runner.os }}-nix-store-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-nix-store-
+
       - name: Build
         run: nix build #.
+
+      - uses: actions/cache@v3
+        if: steps.nix-cache.outputs.cache-hit != 'true'
+        with:
+          path: /nix/store
+          key: ${{ runner.os }}-nix-store-${{ hashFiles('**/Cargo.lock') }}

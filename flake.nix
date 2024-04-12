@@ -51,6 +51,24 @@
             lockFile = ./Cargo.lock;
             allowBuiltinFetchGit = true;
           };
+          LIBCLANG_PATH =
+            pkgs.lib.makeLibraryPath [ pkgs.llvmPackages_latest.libclang.lib ];
+          BINDGEN_EXTRA_CLANG_ARGS =
+            (builtins.map (a: ''-I"${a}/include"'') (if pkgs.stdenv.isLinux then [ pkgs.glibc.dev ] else [ ]))
+            ++ [
+              ''-I"${pkgs.llvmPackages_latest.libclang.lib}/lib/clang/${pkgs.llvmPackages_latest.libclang.version}/include"''
+              ''-I"${pkgs.glib.dev}/include/glib-2.0"''
+              "-I${pkgs.glib.out}/lib/glib-2.0/include/"
+            ];
+          # preBuild = ''
+          #   export BINDGEN_EXTRA_CLANG_ARGS="$(< ${stdenv.cc}/nix-support/libc-crt1-cflags) \
+          #     $(< ${stdenv.cc}/nix-support/libc-cflags) \
+          #     $(< ${stdenv.cc}/nix-support/cc-cflags) \
+          #     $(< ${stdenv.cc}/nix-support/libcxx-cxxflags) \
+          #     ${lib.optionalString stdenv.cc.isClang "-idirafter ${stdenv.cc.cc}/lib/clang/${lib.getVersion stdenv.cc.cc}/include"} \
+          #     ${lib.optionalString stdenv.cc.isGNU "-isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc} -isystem ${stdenv.cc.cc}/include/c++/${lib.getVersion stdenv.cc.cc}/${stdenv.hostPlatform.config} -idirafter ${stdenv.cc.cc}/lib/gcc/${stdenv.hostPlatform.config}/${lib.getVersion stdenv.cc.cc}/include"} \
+          #   "
+          # '';
           nativeBuildInputs = [ cmake llvmPackages_latest.llvm ];
         };
         devShell = with pkgs;

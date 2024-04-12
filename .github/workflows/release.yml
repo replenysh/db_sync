@@ -10,7 +10,7 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,9 +24,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nix-store-
       - name: Build
-        run: |
-          nix build #.
-          ./result/bin/db_sync --version
+        run: nix build #.
       - uses: actions/cache@v3
         if: steps.nix-cache.outputs.cache-hit != 'true'
         with:
@@ -34,3 +32,5 @@ jobs:
           key: ${{ runner.os }}-nix-store-${{ hashFiles('**/Cargo.lock') }}
       - name: Release
         uses: softprops/action-gh-release@v2
+        with:
+          files: ./result/bin/db_sync

@@ -1,3 +1,5 @@
+# This respository is deprecated and no longer maintained. It is available as an archive
+
 # DB Sync
 
 This is a tool used to sync Postgres [functions](https://www.postgresql.org/docs/15/sql-createfunction.html) and [row level security (RLS) policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) to a database based on definitions in a file tree.
